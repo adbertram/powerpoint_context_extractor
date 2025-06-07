@@ -2,6 +2,7 @@
 Notes extraction functionality for PowerPoint presentations.
 """
 
+import re
 import zipfile
 import xml.etree.ElementTree as ET
 import logging
@@ -38,7 +39,11 @@ def extract_notes_from_xml(pptx_path):
             for notes_file in notes_files:
                 try:
                     # Extract slide number from notes file name
-                    slide_num = int(notes_file.split('notesSlide')[1].split('.')[0])
+                    import re
+                    match = re.search(r'notesSlide(\d+)\.xml', notes_file)
+                    if not match:
+                        continue
+                    slide_num = int(match.group(1))
                     
                     # Extract notes text from XML
                     with pptx_zip.open(notes_file) as notes_xml:

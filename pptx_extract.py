@@ -106,19 +106,11 @@ def extract_pptx_content(args):
     if args.notes or args.all:
         logger.info("Extracting slide notes...")
         notes_data = extract_slide_notes(pptx_path)
-        if notes_data:
-            notes_file = save_json_data(notes_data, output_path, "slide_notes.json")
-            if notes_file:
-                logger.info(f"Successfully saved notes information to {notes_file}")
     
     # Extract animations if requested
     if args.animations or args.all:
         logger.info("Extracting slide animations...")
         animation_data = extract_slide_animations(pptx_path)
-        if animation_data:
-            animation_file = save_json_data(animation_data, output_path, "slide_animations.json")
-            if animation_file:
-                logger.info(f"Successfully saved animation information to {animation_file}")
     
     # Extract slides if requested
     if args.slides or args.all:
@@ -129,22 +121,48 @@ def extract_pptx_content(args):
         if slide_paths:
             logger.info(f"Successfully extracted {len(slide_paths)} slides to {slides_dir}")
     
-    # Create a combined JSON with notes and animations if both were extracted
-    if notes_data and animation_data:
-        logger.info("Creating combined content file...")
-        combined_data = {}
-        for slide_key in notes_data:
-            combined_data[slide_key] = {
-                'slide_number': notes_data[slide_key]['slide_number'],
-                'title': notes_data[slide_key]['title'],
-                'notes': notes_data[slide_key]['notes'],
-                'animations': animation_data.get(slide_key, {}).get('animations', []),
-                'animation_count': animation_data.get(slide_key, {}).get('animation_count', 0)
-            }
+    # Create a unified JSON in the requested format
+    logger.info("Creating unified slide content file...")
+    slides_data = {"slides": []}
+    
+    # Determine the maximum number of slides from available data
+    max_slides = 0
+    if notes_data:
+        max_slides = max(max_slides, max([int(key.split('_')[1]) for key in notes_data.keys()]))
+    if animation_data:
+        max_slides = max(max_slides, max([int(key.split('_')[1]) for key in animation_data.keys()]))
+    if slide_paths:
+        max_slides = max(max_slides, len(slide_paths))
+    
+    # Build the slides array
+    for slide_num in range(1, max_slides + 1):
+        slide_key = f"slide_{slide_num}"
+        slide_info = {
+            "number": slide_num,
+            "title": "",
+            "has_animations": False,
+            "notes": "",
+            "description": ""
+        }
         
-        combined_file = save_json_data(combined_data, output_path, "slide_content.json")
-        if combined_file:
-            logger.info(f"Successfully saved combined information to {combined_file}")
+        # Add notes data if available
+        if notes_data and slide_key in notes_data:
+            slide_info["title"] = notes_data[slide_key].get("title", "")
+            slide_info["notes"] = notes_data[slide_key].get("notes", "")
+        
+        # Add animation data if available
+        if animation_data and slide_key in animation_data:
+            slide_info["has_animations"] = animation_data[slide_key].get("has_animations", False)
+            # Add detailed animation information if present
+            if animation_data[slide_key].get("animation_details"):
+                slide_info["animation_details"] = animation_data[slide_key]["animation_details"]
+        
+        slides_data["slides"].append(slide_info)
+    
+    # Save the unified JSON file
+    unified_file = save_json_data(slides_data, output_path, "presentation_content.json")
+    if unified_file:
+        logger.info(f"Successfully saved unified presentation content to {unified_file}")
     
     return notes_data, animation_data, slide_paths
 
@@ -177,6 +195,7 @@ def main():
     if slide_paths:
         print(f"- {len(slide_paths)} slides extracted as images")
     print(f"\nOutput directory: {os.path.abspath(args.output)}")
+    print(f"\nUnified presentation content saved to: {os.path.abspath(args.output)}/presentation_content.json")
 
 if __name__ == "__main__":
     main()
