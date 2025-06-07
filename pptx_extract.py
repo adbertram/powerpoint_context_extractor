@@ -100,6 +100,8 @@ def parse_arguments():
     parser.add_argument("--dpi", "-d", type=int, default=300, help="Image resolution for slides (default: 300)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
     parser.add_argument("--recommend", "-r", action="store_true", help="Generate AI-powered usage recommendations for each slide (requires API key)")
+    parser.add_argument("--recommendation-method", choices=["text", "images"], default="text",
+                        help="Method for generating recommendations: 'text' uses JSON content, 'images' uses slide images (default: text)")
     parser.add_argument("--api-key", help="API key for LLM service (can also use ANTHROPIC_API_KEY or GOOGLE_API_KEY env var)")
     parser.add_argument("--llm-provider", choices=["anthropic", "google"], default="anthropic", 
                         help="LLM provider to use for recommendations (default: anthropic)")
@@ -214,6 +216,13 @@ def extract_pptx_content(args):
         slide_paths = extract_slides(pptx_path, slides_dir, args.format, args.dpi, slide_filter)
         if slide_paths:
             logger.info(f"Successfully extracted {len(slide_paths)} slides to {slides_dir}")
+            
+        # Also extract slide titles when extracting images for better metadata
+        if not notes_data:
+            logger.info("Extracting slide titles for better metadata...")
+            basic_notes_data = extract_slide_notes(pptx_path, slide_filter)
+            if basic_notes_data:
+                notes_data = basic_notes_data
     
     # Create a unified JSON in the requested format
     logger.info("Creating unified slide content file...")
@@ -258,6 +267,14 @@ def extract_pptx_content(args):
             if animation_data[slide_key].get("animation_details"):
                 slide_info["animation_details"] = animation_data[slide_key]["animation_details"]
         
+        # Add image path if slide images were extracted
+        if slide_paths:
+            # Find the image path for this slide
+            for img_path in slide_paths:
+                if f"slide_{slide_num:03d}" in img_path or f"slide_{slide_num}" in img_path:
+                    slide_info["image_path"] = img_path
+                    break
+        
         slides_data["slides"].append(slide_info)
     
     # Generate recommendations if requested
@@ -269,7 +286,7 @@ def extract_pptx_content(args):
         timeout = calculate_timeout(num_slides_to_process, has_recommendations=True)
         logger.info(f"Estimated processing time: up to {timeout} seconds ({timeout // 60} minutes)")
         
-        slides_data = generate_all_recommendations(slides_data, args.api_key, args.llm_provider)
+        slides_data = generate_all_recommendations(slides_data, args.api_key, args.llm_provider, args.recommendation_method)
     
     # Save the unified JSON file
     unified_file = save_json_data(slides_data, output_path, "presentation_content.json")
@@ -291,6 +308,12 @@ def main():
         print("Example: --extract images notes")
         print("Use --help for more information.")
         sys.exit(1)
+    
+    # Validate recommendation method requirements
+    if args.recommend and args.recommendation_method == "images":
+        if "images" not in args.extract and "all" not in args.extract:
+            print("Error: --recommendation-method images requires --extract images or --extract all")
+            sys.exit(1)
     
     # Extract content from PowerPoint file
     result = extract_pptx_content(args)
