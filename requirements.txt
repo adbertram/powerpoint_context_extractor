@@ -1,3 +1,6 @@
 python-pptx>=0.6.21
-Pillow>=9.0.0
-pdf2image>=1.16.0
+Pillow>=9.5.0
+pdf2image>=1.16.3
+argparse>=1.4.0
+logger>=1.4
+PyMuPDF>=1.20.0

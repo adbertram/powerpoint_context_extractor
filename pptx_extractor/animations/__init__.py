@@ -1,0 +1,1 @@
+"""Animations extraction functionality."""

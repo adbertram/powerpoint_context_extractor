@@ -4,7 +4,7 @@ A comprehensive toolkit for extracting content and metadata from PowerPoint pres
 
 ## Overview
 
-PowerPoint Context Extractor is a collection of Python scripts designed to extract and analyze various elements from PowerPoint (.pptx) files. It provides tools to extract:
+PowerPoint Context Extractor is a modular Python toolkit designed to extract and analyze various elements from PowerPoint (.pptx) files. It provides tools to extract:
 
 - **Slide Notes**: Detailed presenter notes from each slide
 - **Animations**: Animation sequences, effects, and transitions
@@ -20,6 +20,7 @@ The toolkit uses a combination of the `python-pptx` library and direct XML parsi
 - **Content Analysis**: Extract slide titles, content, and structure
 - **Combined Output**: Generate comprehensive JSON files containing all extracted information
 - **Detailed Logging**: Track the extraction process with informative logs
+- **Modular Architecture**: Clean separation of concerns for maintainability and extensibility
 
 ## Requirements
 
@@ -27,52 +28,115 @@ The toolkit uses a combination of the `python-pptx` library and direct XML parsi
 - python-pptx
 - Pillow (for image extraction)
 - pdf2image (for slide conversion)
+- LibreOffice (for PPTX to PDF conversion)
+- Poppler (for PDF to image conversion)
 
 ## Installation
 
 1. Clone this repository:
-   ```
+   ```bash
    git clone https://github.com/adbertram/powerpoint_context_extractor.git
    ```
 
 2. Install required packages:
-   ```
+   ```bash
    pip install -r requirements.txt
+   ```
+
+3. Install system dependencies (for slide extraction):
+   - LibreOffice: For converting PPTX to PDF
+   - Poppler: For converting PDF to images
+
+   On macOS:
+   ```bash
+   brew install libreoffice poppler
+   ```
+
+   On Ubuntu/Debian:
+   ```bash
+   sudo apt-get install libreoffice poppler-utils
    ```
 
 ## Usage
 
-### Extract Everything (Notes, Animations, and Combined Content)
+### Main Command-Line Interface
+
+The main script `pptx_extract.py` provides a unified interface for all extraction features:
 
 ```bash
-python extract_pptx.py path/to/presentation.pptx --output ./output_directory
+python pptx_extract.py path/to/presentation.pptx [options]
 ```
 
-### Extract Only Notes
+Options:
+- `--output DIR, -o DIR`: Output directory (default: ./output)
+- `--notes, -n`: Extract notes
+- `--animations, -a`: Extract animations
+- `--slides, -s`: Extract slides as images
+- `--format FORMAT, -f FORMAT`: Image format for slides (png, jpg, jpeg, tiff, bmp; default: png)
+- `--dpi DPI, -d DPI`: Image resolution for slides (default: 300)
+- `--all`: Extract everything (notes, animations, slides)
+- `--verbose, -v`: Enable verbose logging
+
+### Examples
+
+#### Extract Everything
 
 ```bash
-python extract_notes.py path/to/presentation.pptx --output ./notes.json
+python pptx_extract.py path/to/presentation.pptx --all --output ./output_directory
 ```
 
-### Extract Only Animations
+#### Extract Only Notes
 
 ```bash
-python extract_animations.py path/to/presentation.pptx --output ./animations.json
+python pptx_extract.py path/to/presentation.pptx --notes --output ./output_directory
 ```
 
-### Extract Slides as Images
+#### Extract Only Animations
 
 ```bash
-python extract_slides.py path/to/presentation.pptx --output ./slides_directory --format png --dpi 300
+python pptx_extract.py path/to/presentation.pptx --animations --output ./output_directory
+```
+
+#### Extract Slides as Images
+
+```bash
+python pptx_extract.py path/to/presentation.pptx --slides --format png --dpi 300 --output ./output_directory
 ```
 
 ## Output Files
 
-The scripts generate JSON files containing the extracted information:
+The toolkit generates the following output files:
+
 
 - **slide_notes.json**: Contains slide numbers, titles, and notes text
 - **slide_animations.json**: Contains animation information for each slide
 - **slide_content.json**: A combined file with both notes and animations
+- **slides/**: Directory containing extracted slide images (when using --slides option)
+
+
+## Project Structure
+
+```text
+powerpoint_context_extractor/
+├── pptx_extract.py             # Main entry point script
+├── pptx_extractor/             # Package directory
+│   ├── __init__.py             # Package initialization
+│   ├── animations/             # Animations extraction module
+│   │   ├── __init__.py
+│   │   └── extractor.py        # Animations extraction functionality
+│   ├── notes/                  # Notes extraction module
+│   │   ├── __init__.py
+│   │   └── extractor.py        # Notes extraction functionality
+│   ├── slides/                 # Slides extraction module
+│   │   ├── __init__.py
+│   │   └── extractor.py        # Slides extraction functionality
+│   └── utils/                  # Utility functions
+│       ├── __init__.py
+│       └── common.py           # Common utilities
+├── README.md                   # Project documentation
+├── LICENSE                     # License file
+└── requirements.txt            # Python dependencies
+```
 
 ## How It Works
 

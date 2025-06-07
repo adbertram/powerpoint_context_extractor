@@ -1,0 +1,1 @@
+"""Notes extraction functionality."""
