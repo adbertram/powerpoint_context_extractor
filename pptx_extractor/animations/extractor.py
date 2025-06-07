@@ -522,12 +522,13 @@ def get_slide_layout_info(slide_number, pptx_path):
     
     return (None, None)
 
-def extract_slide_animations(pptx_path):
+def extract_slide_animations(pptx_path, slide_filter=None):
     """
     Extract animations from all slides in a PowerPoint file.
     
     Args:
         pptx_path (str): Path to the PowerPoint file
+        slide_filter (set): Optional set of slide numbers to process
         
     Returns:
         dict: Dictionary containing animation information for all slides
@@ -552,6 +553,9 @@ def extract_slide_animations(pptx_path):
     
     # Process each slide
     for i, slide in enumerate(prs.slides, 1):
+        # Skip if slide filtering is enabled and this slide is not in the filter
+        if slide_filter and i not in slide_filter:
+            continue
         # Get slide title
         title = get_slide_title(slide)
         

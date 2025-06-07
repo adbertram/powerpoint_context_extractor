@@ -12,12 +12,13 @@ from ..utils.common import NAMESPACES, register_namespaces
 
 logger = logging.getLogger(__name__)
 
-def extract_notes_from_xml(pptx_path):
+def extract_notes_from_xml(pptx_path, slide_filter=None):
     """
     Extract notes directly from the PPTX XML structure.
     
     Args:
         pptx_path (str): Path to the PowerPoint file
+        slide_filter (set): Optional set of slide numbers to process
         
     Returns:
         dict: Dictionary mapping slide numbers to notes text
@@ -44,6 +45,10 @@ def extract_notes_from_xml(pptx_path):
                     if not match:
                         continue
                     slide_num = int(match.group(1))
+                    
+                    # Skip if slide filtering is enabled and this slide is not in the filter
+                    if slide_filter and slide_num not in slide_filter:
+                        continue
                     
                     # Extract notes text from XML
                     with pptx_zip.open(notes_file) as notes_xml:
@@ -112,12 +117,13 @@ def extract_notes_from_xml(pptx_path):
     
     return notes_by_slide
 
-def extract_slide_notes(pptx_path):
+def extract_slide_notes(pptx_path, slide_filter=None):
     """
     Extract notes from all slides in a PowerPoint file.
     
     Args:
         pptx_path (str): Path to the PowerPoint file
+        slide_filter (set): Optional set of slide numbers to process
     
     Returns:
         dict: Dictionary containing notes for all slides
@@ -135,7 +141,7 @@ def extract_slide_notes(pptx_path):
     
     # Extract notes using direct XML parsing
     logger.info("Extracting notes from XML structure...")
-    xml_notes = extract_notes_from_xml(pptx_path)
+    xml_notes = extract_notes_from_xml(pptx_path, slide_filter)
     
     # Dictionary to store notes information
     notes_data = {}
@@ -143,6 +149,10 @@ def extract_slide_notes(pptx_path):
     # Process each slide
     logger.info(f"Found {len(prs.slides)} slides")
     for i, slide in enumerate(prs.slides, 1):
+        # Skip if slide filtering is enabled and this slide is not in the filter
+        if slide_filter and i not in slide_filter:
+            continue
+            
         # Get slide title
         title = "Untitled"
         for shape in slide.shapes:

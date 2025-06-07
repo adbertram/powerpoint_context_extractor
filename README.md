@@ -19,7 +19,7 @@ The toolkit uses a combination of the `python-pptx` library and direct XML parsi
 - **Animation Detection**: Identify and document animations, transitions, and effects
 - **Content Analysis**: Extract slide titles, content, and structure
 - **Combined Output**: Generate comprehensive JSON files containing all extracted information
-- **AI-Powered Recommendations**: Generate usage recommendations for each slide using LLM analysis
+- **AI-Powered Recommendations**: Generate usage recommendations for each slide using LLM analysis (supports both Anthropic Claude and Google Gemini)
 - **Detailed Logging**: Track the extraction process with informative logs
 - **Modular Architecture**: Clean separation of concerns for maintainability and extensibility
 
@@ -77,7 +77,8 @@ Options:
 - `--dpi DPI, -d DPI`: Image resolution for slides (default: 300)
 - `--all`: Extract everything (notes, animations, slides)
 - `--recommend, -r`: Generate AI-powered usage recommendations for each slide (requires API key)
-- `--api-key API_KEY`: API key for LLM service (can also use ANTHROPIC_API_KEY env var)
+- `--api-key API_KEY`: API key for LLM service (can also use ANTHROPIC_API_KEY or GOOGLE_API_KEY env var)
+- `--llm-provider`: LLM provider to use for recommendations ("anthropic" or "google", default: anthropic)
 - `--verbose, -v`: Enable verbose logging
 
 ### Examples
@@ -108,6 +109,7 @@ python pptx_extract.py path/to/presentation.pptx --slides --format png --dpi 300
 
 #### Extract with AI-Powered Recommendations
 
+##### Using Anthropic Claude (default)
 ```bash
 # Using command-line API key
 python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --api-key YOUR_API_KEY --output ./output_directory
@@ -119,6 +121,20 @@ python pptx_extract.py path/to/presentation.pptx --notes --animations --recommen
 # Using .env file (create a .env file in the project root)
 echo 'ANTHROPIC_API_KEY=YOUR_API_KEY' > .env
 python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --output ./output_directory
+```
+
+##### Using Google Gemini
+```bash
+# Using command-line API key
+python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --llm-provider google --api-key YOUR_API_KEY --output ./output_directory
+
+# Using environment variable
+export GOOGLE_API_KEY=YOUR_API_KEY
+python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --llm-provider google --output ./output_directory
+
+# Using .env file (create a .env file in the project root)
+echo 'GOOGLE_API_KEY=YOUR_API_KEY' > .env
+python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --llm-provider google --output ./output_directory
 ```
 
 ## Output Files
