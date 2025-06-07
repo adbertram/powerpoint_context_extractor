@@ -29,11 +29,16 @@ import json
 import argparse
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from pptx_extractor.utils.common import setup_logging, ensure_directory
 from pptx_extractor.notes.extractor import extract_slide_notes
 from pptx_extractor.animations.extractor import extract_slide_animations
 from pptx_extractor.slides.extractor import extract_slides
+from pptx_extractor.recommendations import generate_all_recommendations
 
 def parse_arguments():
     """Parse command-line arguments."""
@@ -52,6 +57,8 @@ def parse_arguments():
     parser.add_argument("--dpi", "-d", type=int, default=300, help="Image resolution for slides (default: 300)")
     parser.add_argument("--all", action="store_true", help="Extract everything (notes, animations, slides)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
+    parser.add_argument("--recommend", "-r", action="store_true", help="Generate AI-powered usage recommendations for each slide (requires API key)")
+    parser.add_argument("--api-key", help="API key for LLM service (can also use ANTHROPIC_API_KEY env var)")
     
     return parser.parse_args()
 
@@ -161,6 +168,11 @@ def extract_pptx_content(args):
                 slide_info["animation_details"] = animation_data[slide_key]["animation_details"]
         
         slides_data["slides"].append(slide_info)
+    
+    # Generate recommendations if requested
+    if args.recommend:
+        logger.info("Generating AI-powered usage recommendations...")
+        slides_data = generate_all_recommendations(slides_data, args.api_key)
     
     # Save the unified JSON file
     unified_file = save_json_data(slides_data, output_path, "presentation_content.json")

@@ -19,6 +19,7 @@ The toolkit uses a combination of the `python-pptx` library and direct XML parsi
 - **Animation Detection**: Identify and document animations, transitions, and effects
 - **Content Analysis**: Extract slide titles, content, and structure
 - **Combined Output**: Generate comprehensive JSON files containing all extracted information
+- **AI-Powered Recommendations**: Generate usage recommendations for each slide using LLM analysis
 - **Detailed Logging**: Track the extraction process with informative logs
 - **Modular Architecture**: Clean separation of concerns for maintainability and extensibility
 
@@ -75,6 +76,8 @@ Options:
 - `--format FORMAT, -f FORMAT`: Image format for slides (png, jpg, jpeg, tiff, bmp; default: png)
 - `--dpi DPI, -d DPI`: Image resolution for slides (default: 300)
 - `--all`: Extract everything (notes, animations, slides)
+- `--recommend, -r`: Generate AI-powered usage recommendations for each slide (requires API key)
+- `--api-key API_KEY`: API key for LLM service (can also use ANTHROPIC_API_KEY env var)
 - `--verbose, -v`: Enable verbose logging
 
 ### Examples
@@ -103,14 +106,31 @@ python pptx_extract.py path/to/presentation.pptx --animations --output ./output_
 python pptx_extract.py path/to/presentation.pptx --slides --format png --dpi 300 --output ./output_directory
 ```
 
+#### Extract with AI-Powered Recommendations
+
+```bash
+# Using command-line API key
+python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --api-key YOUR_API_KEY --output ./output_directory
+
+# Using environment variable
+export ANTHROPIC_API_KEY=YOUR_API_KEY
+python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --output ./output_directory
+
+# Using .env file (create a .env file in the project root)
+echo 'ANTHROPIC_API_KEY=YOUR_API_KEY' > .env
+python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --output ./output_directory
+```
+
 ## Output Files
 
 The toolkit generates the following output files:
 
-
-- **slide_notes.json**: Contains slide numbers, titles, and notes text
-- **slide_animations.json**: Contains animation information for each slide
-- **slide_content.json**: A combined file with both notes and animations
+- **presentation_content.json**: A unified JSON file containing:
+  - Slide numbers and titles
+  - Notes text
+  - Animation details with human-readable descriptions
+  - Animation summaries
+  - Usage recommendations (when using --recommend option)
 - **slides/**: Directory containing extracted slide images (when using --slides option)
 
 
@@ -130,6 +150,7 @@ powerpoint_context_extractor/
 │   ├── slides/                 # Slides extraction module
 │   │   ├── __init__.py
 │   │   └── extractor.py        # Slides extraction functionality
+│   ├── recommendations.py      # AI-powered recommendations module
 │   └── utils/                  # Utility functions
 │       ├── __init__.py
 │       └── common.py           # Common utilities
