@@ -352,7 +352,6 @@ def create_animation_description(animation, shape_info):
             action += f" to the color {color}"
         elif 'scale' in direction:
             # Parse scale values
-            import re
             scale_match = re.search(r'scale_x(\d+)_y(\d+)', direction)
             if scale_match:
                 x_scale = int(scale_match.group(1)) / 100000
