@@ -39,6 +39,7 @@ from pptx_extractor.notes.extractor import extract_slide_notes
 from pptx_extractor.animations.extractor import extract_slide_animations
 from pptx_extractor.slides.extractor import extract_slides
 from pptx_extractor.recommendations import generate_all_recommendations
+from pptx_extractor.config import get_config
 
 def parse_slide_numbers(slide_nums_str: str) -> Set[int]:
     """Parse slide numbers from a string.
@@ -86,6 +87,11 @@ def parse_slide_numbers(slide_nums_str: str) -> Set[int]:
 
 def parse_arguments():
     """Parse command-line arguments."""
+    # Load configuration for defaults
+    config = get_config()
+    cli_defaults = config.get_cli_defaults()
+    supported_formats = config.get_supported_formats()
+    
     parser = argparse.ArgumentParser(
         description="Extract content and metadata from PowerPoint presentations.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -93,19 +99,32 @@ def parse_arguments():
     )
     
     parser.add_argument("pptx_file", help="Path to the PowerPoint file")
-    parser.add_argument("--output", "-o", default="./output", help="Output directory (default: ./output)")
-    parser.add_argument("--extract", "-e", nargs="+", choices=["images", "notes", "animations", "all"], 
+    parser.add_argument("--output", "-o", 
+                        default=cli_defaults.get('output_directory', './output'), 
+                        help=f"Output directory (default: {cli_defaults.get('output_directory', './output')})")
+    parser.add_argument("--extract", "-e", nargs="+", 
+                        choices=supported_formats.get('extraction_types', ["images", "notes", "animations", "all"]), 
                         help="What to extract: images, notes, animations, all (can specify multiple)")
-    parser.add_argument("--format", "-f", default="png", choices=["png", "jpg", "jpeg", "tiff", "bmp"], help="Image format for slides (default: png)")
-    parser.add_argument("--dpi", "-d", type=int, default=300, help="Image resolution for slides (default: 300)")
+    parser.add_argument("--format", "-f", 
+                        default=cli_defaults.get('image_format', 'png'), 
+                        choices=supported_formats.get('image_formats', ["png", "jpg", "jpeg", "tiff", "bmp"]), 
+                        help=f"Image format for slides (default: {cli_defaults.get('image_format', 'png')})")
+    parser.add_argument("--dpi", "-d", type=int, 
+                        default=cli_defaults.get('dpi', 300), 
+                        help=f"Image resolution for slides (default: {cli_defaults.get('dpi', 300)})")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
     parser.add_argument("--recommend", "-r", action="store_true", help="Generate AI-powered usage recommendations for each slide (requires API key)")
-    parser.add_argument("--recommendation-method", choices=["text", "images"], default="text",
-                        help="Method for generating recommendations: 'text' uses JSON content, 'images' uses slide images (default: text)")
+    parser.add_argument("--recommendation-method", 
+                        choices=["text", "images"], 
+                        default=cli_defaults.get('recommendation_method', 'text'),
+                        help=f"Method for generating recommendations: 'text' uses JSON content, 'images' uses slide images (default: {cli_defaults.get('recommendation_method', 'text')})")
     parser.add_argument("--api-key", help="API key for LLM service (can also use ANTHROPIC_API_KEY or GOOGLE_API_KEY env var)")
-    parser.add_argument("--llm-provider", choices=["anthropic", "google"], default="anthropic", 
-                        help="LLM provider to use for recommendations (default: anthropic)")
+    parser.add_argument("--llm-provider", 
+                        choices=["anthropic", "google"], 
+                        default=cli_defaults.get('llm_provider', 'anthropic'), 
+                        help=f"LLM provider to use for recommendations (default: {cli_defaults.get('llm_provider', 'anthropic')})")
     parser.add_argument("--slide-nums", help="Specific slide numbers to process (e.g., '1', '1,3,5', '1-5', '1-3,7,9-11')")
+    parser.add_argument("--config", help="Path to configuration file (overrides default config)")
     
     return parser.parse_args()
 
@@ -139,20 +158,8 @@ def calculate_timeout(num_slides: int, has_recommendations: bool = False) -> int
     Returns:
         Timeout in seconds
     """
-    # Base timeout
-    base_timeout = 60  # 1 minute base
-    
-    # Add time per slide
-    per_slide_time = 5  # 5 seconds per slide for basic extraction
-    
-    # If generating recommendations, add more time per slide
-    if has_recommendations:
-        per_slide_time += 20  # 20 additional seconds per slide for AI recommendations
-    
-    total_timeout = base_timeout + (num_slides * per_slide_time)
-    
-    # Cap at 10 minutes
-    return min(total_timeout, 600)
+    config = get_config()
+    return config.calculate_timeout(num_slides, has_recommendations)
 
 def extract_pptx_content(args):
     """Extract content from a PowerPoint file based on command-line arguments.
@@ -299,6 +306,11 @@ def main():
     """Main entry point."""
     # Parse command-line arguments
     args = parse_arguments()
+    
+    # Handle config file override
+    if hasattr(args, 'config') and args.config:
+        from pptx_extractor.config import reload_config
+        reload_config(args.config)
     
     # If no extraction options are specified, show help and exit
     if not args.extract:

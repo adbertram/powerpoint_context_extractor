@@ -25,12 +25,18 @@ The toolkit uses a combination of the `python-pptx` library and direct XML parsi
 
 ## Requirements
 
+### Core Dependencies
 - Python 3.6+
 - python-pptx
 - Pillow (for image extraction)
 - pdf2image (for slide conversion)
 - LibreOffice (for PPTX to PDF conversion)
 - Poppler (for PDF to image conversion)
+
+### AI Features (Optional)
+- anthropic (for Claude AI recommendations)
+- google-generativeai (for Gemini AI recommendations)
+- python-dotenv (for environment variable management)
 
 ## Installation
 
@@ -39,9 +45,13 @@ The toolkit uses a combination of the `python-pptx` library and direct XML parsi
    git clone https://github.com/adbertram/powerpoint_context_extractor.git
    ```
 
-2. Install required packages:
+2. Install the package and dependencies:
    ```bash
+   # Install basic dependencies
    pip install -r requirements.txt
+   
+   # Or install the package (includes console script)
+   pip install -e .
    ```
 
 3. Install system dependencies (for slide extraction):
@@ -70,71 +80,93 @@ python pptx_extract.py path/to/presentation.pptx [options]
 
 Options:
 - `--output DIR, -o DIR`: Output directory (default: ./output)
-- `--notes, -n`: Extract notes
-- `--animations, -a`: Extract animations
-- `--slides, -s`: Extract slides as images
+- `--extract TYPE`: What to extract - options: images, notes, animations, all (default: all)
+- `--slide-nums RANGES`: Process specific slides (e.g., "1-5,7,10-12")
 - `--format FORMAT, -f FORMAT`: Image format for slides (png, jpg, jpeg, tiff, bmp; default: png)
 - `--dpi DPI, -d DPI`: Image resolution for slides (default: 300)
-- `--all`: Extract everything (notes, animations, slides)
 - `--recommend, -r`: Generate AI-powered usage recommendations for each slide (requires API key)
+- `--recommendation-method METHOD`: Method for recommendations ("text" or "images", default: text)
 - `--api-key API_KEY`: API key for LLM service (can also use ANTHROPIC_API_KEY or GOOGLE_API_KEY env var)
-- `--llm-provider`: LLM provider to use for recommendations ("anthropic" or "google", default: anthropic)
+- `--llm-provider PROVIDER`: LLM provider to use ("anthropic" or "google", default: anthropic)
+- `--config CONFIG`: Path to custom configuration file
 - `--verbose, -v`: Enable verbose logging
+
+### Alternative CLI Interface
+
+You can also use the console script (after `pip install -e .`):
+
+```bash
+pptx-extract path/to/presentation.pptx [options]
+```
+
+Or the basic CLI interface:
+
+```bash
+python -m pptx_extractor.cli path/to/presentation.pptx
+```
 
 ### Examples
 
 #### Extract Everything
 
 ```bash
-python pptx_extract.py path/to/presentation.pptx --all --output ./output_directory
+python pptx_extract.py path/to/presentation.pptx --extract all --output ./output_directory
 ```
 
 #### Extract Only Notes
 
 ```bash
-python pptx_extract.py path/to/presentation.pptx --notes --output ./output_directory
+python pptx_extract.py path/to/presentation.pptx --extract notes --output ./output_directory
 ```
 
 #### Extract Only Animations
 
 ```bash
-python pptx_extract.py path/to/presentation.pptx --animations --output ./output_directory
+python pptx_extract.py path/to/presentation.pptx --extract animations --output ./output_directory
 ```
 
 #### Extract Slides as Images
 
 ```bash
-python pptx_extract.py path/to/presentation.pptx --slides --format png --dpi 300 --output ./output_directory
+python pptx_extract.py path/to/presentation.pptx --extract images --format png --dpi 300 --output ./output_directory
+```
+
+#### Extract Specific Slides
+
+```bash
+# Extract slides 1-5, 7, and 10-12
+python pptx_extract.py path/to/presentation.pptx --slide-nums "1-5,7,10-12" --output ./output_directory
+
+# Extract only slide 3
+python pptx_extract.py path/to/presentation.pptx --slide-nums "3" --output ./output_directory
 ```
 
 #### Extract with AI-Powered Recommendations
 
 ##### Using Anthropic Claude (default)
 ```bash
-# Using command-line API key
-python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --api-key YOUR_API_KEY --output ./output_directory
+# Text-based recommendations (default)
+python pptx_extract.py path/to/presentation.pptx --extract all --recommend --api-key YOUR_API_KEY
+
+# Image-based recommendations
+python pptx_extract.py path/to/presentation.pptx --extract all --recommend --recommendation-method images --api-key YOUR_API_KEY
 
 # Using environment variable
 export ANTHROPIC_API_KEY=YOUR_API_KEY
-python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --output ./output_directory
-
-# Using .env file (create a .env file in the project root)
-echo 'ANTHROPIC_API_KEY=YOUR_API_KEY' > .env
-python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --output ./output_directory
+python pptx_extract.py path/to/presentation.pptx --extract all --recommend
 ```
 
 ##### Using Google Gemini
 ```bash
-# Using command-line API key
-python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --llm-provider google --api-key YOUR_API_KEY --output ./output_directory
+# Text-based recommendations
+python pptx_extract.py path/to/presentation.pptx --extract all --recommend --llm-provider google --api-key YOUR_API_KEY
+
+# Image-based recommendations
+python pptx_extract.py path/to/presentation.pptx --extract all --recommend --llm-provider google --recommendation-method images --api-key YOUR_API_KEY
 
 # Using environment variable
 export GOOGLE_API_KEY=YOUR_API_KEY
-python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --llm-provider google --output ./output_directory
-
-# Using .env file (create a .env file in the project root)
-echo 'GOOGLE_API_KEY=YOUR_API_KEY' > .env
-python pptx_extract.py path/to/presentation.pptx --notes --animations --recommend --llm-provider google --output ./output_directory
+python pptx_extract.py path/to/presentation.pptx --extract all --recommend --llm-provider google
 ```
 
 ## Output Files
@@ -147,8 +179,40 @@ The toolkit generates the following output files:
   - Animation details with human-readable descriptions
   - Animation summaries
   - Usage recommendations (when using --recommend option)
-- **slides/**: Directory containing extracted slide images (when using --slides option)
+- **slides/**: Directory containing extracted slide images (when using image extraction)
 
+## Configuration
+
+The toolkit supports extensive configuration through JSON files. You can customize:
+
+- **API Settings**: Model selection, temperature, token limits for both Anthropic and Google
+- **Processing Options**: Timeouts, batch sizes, error handling
+- **Output Settings**: File naming conventions, logging levels
+- **System Integration**: Dependency management, LibreOffice settings
+
+### Creating a Custom Configuration
+
+```bash
+# Use a custom config file
+python pptx_extract.py presentation.pptx --config my_config.json
+```
+
+The project includes a `config.json.example` file showing all available configuration options. Copy this file to create your own custom configuration:
+
+```bash
+# Copy the example config and customize it
+cp config.json.example my_config.json
+```
+
+Key configuration sections include:
+
+- **cli_defaults**: Override default CLI options (output directory, image format, DPI, etc.)
+- **timeouts**: Configure processing timeouts based on slide count and operations
+- **api_settings**: Customize AI model settings for both Anthropic and Google providers
+- **image_settings**: Control image processing parameters
+- **processing**: Fine-tune conversion and processing behavior
+
+See `config.json.example` for the complete configuration structure with all available options and their descriptions.
 
 ## Project Structure
 
@@ -157,6 +221,7 @@ powerpoint_context_extractor/
 ├── pptx_extract.py             # Main entry point script
 ├── pptx_extractor/             # Package directory
 │   ├── __init__.py             # Package initialization
+│   ├── cli.py                  # Alternative CLI interface
 │   ├── animations/             # Animations extraction module
 │   │   ├── __init__.py
 │   │   └── extractor.py        # Animations extraction functionality
@@ -166,10 +231,14 @@ powerpoint_context_extractor/
 │   ├── slides/                 # Slides extraction module
 │   │   ├── __init__.py
 │   │   └── extractor.py        # Slides extraction functionality
-│   ├── recommendations.py      # AI-powered recommendations module
+│   ├── recommendations/        # AI-powered recommendations module
+│   │   ├── __init__.py
+│   │   ├── generator.py        # Recommendation generation logic
+│   │   └── system_message.md   # Customizable AI prompts
 │   └── utils/                  # Utility functions
 │       ├── __init__.py
-│       └── common.py           # Common utilities
+│       └── common.py           # Common utilities and configuration
+├── setup.py                    # Package setup and console scripts
 ├── README.md                   # Project documentation
 ├── LICENSE                     # License file
 └── requirements.txt            # Python dependencies

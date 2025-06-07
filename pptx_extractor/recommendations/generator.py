@@ -7,6 +7,7 @@ import logging
 import json
 from pathlib import Path
 from typing import Dict, Optional
+from ..config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +145,11 @@ def generate_anthropic_recommendation(slide_data: Dict, api_key: str, method: st
         return "Recommendation generation unavailable: Anthropic library not installed"
     
     try:
+        # Get API configuration
+        config = get_config()
+        api_config = config.get_api_config('anthropic')
+        image_settings = config.get('image_settings', {})
+        
         client = Anthropic(api_key=api_key)
         
         if method == "images" and "image_path" in slide_data:
@@ -158,26 +164,26 @@ def generate_anthropic_recommendation(slide_data: Dict, api_key: str, method: st
             with open(image_path, "rb") as image_file:
                 image_data = base64.b64encode(image_file.read()).decode('utf-8')
             
-            # Determine image media type
+            # Determine image media type using configuration
             image_ext = os.path.splitext(image_path)[1].lower()
-            media_type_map = {
+            media_type_map = image_settings.get('supported_media_types', {
                 '.png': 'image/png',
                 '.jpg': 'image/jpeg',
                 '.jpeg': 'image/jpeg',
                 '.tiff': 'image/tiff',
                 '.bmp': 'image/bmp'
-            }
+            })
             media_type = media_type_map.get(image_ext, 'image/png')
             
             # Create prompt for image analysis using system message
             system_message = load_system_message()
             image_prompt = system_message.replace("{context}", "Based on this PowerPoint slide image:")
             
-            # Make API call with image
+            # Make API call with image using configuration
             response = client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=200,
-                temperature=0.7,
+                model=api_config.get('model', 'claude-3-haiku-20240307'),
+                max_tokens=api_config.get('max_tokens', 200),
+                temperature=api_config.get('temperature', 0.7),
                 messages=[
                     {
                         "role": "user",
@@ -203,11 +209,11 @@ def generate_anthropic_recommendation(slide_data: Dict, api_key: str, method: st
             context = get_slide_context(slide_data)
             prompt = create_recommendation_prompt(context)
 
-            # Make API call
+            # Make API call using configuration
             response = client.messages.create(
-                model="claude-3-haiku-20240307",  # Using Haiku for efficiency
-                max_tokens=200,
-                temperature=0.7,
+                model=api_config.get('model', 'claude-3-haiku-20240307'),
+                max_tokens=api_config.get('max_tokens', 200),
+                temperature=api_config.get('temperature', 0.7),
                 messages=[
                     {"role": "user", "content": prompt}
                 ]
@@ -237,12 +243,16 @@ def generate_google_recommendation(slide_data: Dict, api_key: str, method: str =
         return "Recommendation generation unavailable: Google Generative AI library not installed"
     
     try:
+        # Get API configuration
+        config = get_config()
+        api_config = config.get_api_config('google')
+        
         # Configure Google AI
         genai.configure(api_key=api_key)
         
-        # Create the model (using gemini-2.5-pro-preview-06-05 for testing)
-        # For available models, see: https://ai.google.dev/gemini-api/docs/models
-        model = genai.GenerativeModel('gemini-2.5-pro-preview-06-05')
+        # Create the model using configuration
+        model_name = api_config.get('model', 'gemini-2.5-pro-preview-06-05')
+        model = genai.GenerativeModel(model_name)
         
         if method == "images" and "image_path" in slide_data:
             # Use image-based recommendation

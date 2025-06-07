@@ -1,0 +1,48 @@
+{
+  "description": "Example custom configuration - shows how to override defaults",
+  
+  "cli_defaults": {
+    "output_directory": "./my_custom_output",
+    "image_format": "jpg",
+    "dpi": 150,
+    "verbose": true,
+    "recommend": true,
+    "recommendation_method": "images",
+    "llm_provider": "google"
+  },
+  
+  "timeouts": {
+    "base_timeout_seconds": 30,
+    "per_slide_basic_seconds": 3,
+    "per_slide_recommendation_seconds": 15,
+    "max_timeout_seconds": 300
+  },
+  
+  "api_settings": {
+    "anthropic": {
+      "model": "claude-3-sonnet-20240229",
+      "max_tokens": 300,
+      "temperature": 0.5
+    },
+    "google": {
+      "model": "gemini-1.5-pro"
+    }
+  },
+  
+  "image_settings": {
+    "default_dpi_range": {
+      "min": 72,
+      "max": 300,
+      "default": 150
+    }
+  },
+  
+  "processing": {
+    "pdf_conversion": {
+      "check_interval_seconds": 3
+    },
+    "image_conversion": {
+      "progress_update_every_n_images": 2
+    }
+  }
+}
