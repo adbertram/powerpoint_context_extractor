@@ -13,12 +13,10 @@ Usage:
 
 Options:
     --output DIR, -o DIR       Output directory (default: ./output)
-    --notes, -n                Extract notes
-    --animations, -a           Extract animations
-    --slides, -s               Extract slides as images
+    --extract TYPE, -e TYPE    What to extract: images, notes, animations, all
+                               (can specify multiple: --extract images notes)
     --format FORMAT, -f FORMAT Image format for slides (default: png)
     --dpi DPI, -d DPI          Image resolution for slides (default: 300)
-    --all                      Extract everything (notes, animations, slides)
     --verbose, -v              Enable verbose logging
     --help, -h                 Show this help message and exit
 """
@@ -96,12 +94,10 @@ def parse_arguments():
     
     parser.add_argument("pptx_file", help="Path to the PowerPoint file")
     parser.add_argument("--output", "-o", default="./output", help="Output directory (default: ./output)")
-    parser.add_argument("--notes", "-n", action="store_true", help="Extract notes")
-    parser.add_argument("--animations", "-a", action="store_true", help="Extract animations")
-    parser.add_argument("--slides", "-s", action="store_true", help="Extract slides as images")
+    parser.add_argument("--extract", "-e", nargs="+", choices=["images", "notes", "animations", "all"], 
+                        help="What to extract: images, notes, animations, all (can specify multiple)")
     parser.add_argument("--format", "-f", default="png", choices=["png", "jpg", "jpeg", "tiff", "bmp"], help="Image format for slides (default: png)")
     parser.add_argument("--dpi", "-d", type=int, default=300, help="Image resolution for slides (default: 300)")
-    parser.add_argument("--all", action="store_true", help="Extract everything (notes, animations, slides)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
     parser.add_argument("--recommend", "-r", action="store_true", help="Generate AI-powered usage recommendations for each slide (requires API key)")
     parser.add_argument("--api-key", help="API key for LLM service (can also use ANTHROPIC_API_KEY or GOOGLE_API_KEY env var)")
@@ -192,24 +188,30 @@ def extract_pptx_content(args):
     animation_data = None
     slide_paths = None
     
+    # Determine what to extract
+    extract_all = "all" in args.extract
+    extract_notes = "notes" in args.extract or extract_all
+    extract_animations = "animations" in args.extract or extract_all
+    extract_images = "images" in args.extract or extract_all
+    
     # Extract notes if requested
-    if args.notes or args.all:
+    if extract_notes:
         logger.info("Extracting slide notes...")
         notes_data = extract_slide_notes(pptx_path, slide_filter)
     
     # Extract animations if requested
-    if args.animations or args.all:
+    if extract_animations:
         logger.info("Extracting slide animations...")
         animation_data = extract_slide_animations(pptx_path, slide_filter)
     
     # Extract slides if requested
-    if args.slides or args.all:
+    if extract_images:
         logger.info("Extracting slides as images...")
         if slide_filter:
-            logger.warning("Note: Slide filtering is not supported for image extraction. All slides will be extracted.")
+            logger.info(f"Extracting only slides: {sorted(slide_filter)}")
         slides_dir = output_path / "slides"
         slides_dir.mkdir(exist_ok=True)
-        slide_paths = extract_slides(pptx_path, slides_dir, args.format, args.dpi)
+        slide_paths = extract_slides(pptx_path, slides_dir, args.format, args.dpi, slide_filter)
         if slide_paths:
             logger.info(f"Successfully extracted {len(slide_paths)} slides to {slides_dir}")
     
@@ -282,9 +284,11 @@ def main():
     args = parse_arguments()
     
     # If no extraction options are specified, show help and exit
-    if not (args.notes or args.animations or args.slides or args.all):
+    if not args.extract:
         print("Error: No extraction options specified.")
-        print("Please specify at least one of: --notes, --animations, --slides, or --all")
+        print("Please specify what to extract using --extract")
+        print("Options: images, notes, animations, all")
+        print("Example: --extract images notes")
         print("Use --help for more information.")
         sys.exit(1)
     

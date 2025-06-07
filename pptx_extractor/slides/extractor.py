@@ -129,7 +129,7 @@ def extract_slide_titles(pptx_path):
         logger.error(f"Error extracting slide titles: {e}")
         return []
 
-def convert_pdf_to_images(pdf_path, output_dir, format='png', dpi=300):
+def convert_pdf_to_images(pdf_path, output_dir, format='png', dpi=300, slide_filter=None):
     """Convert PDF file to images using pdf2image.
     
     Args:
@@ -137,6 +137,7 @@ def convert_pdf_to_images(pdf_path, output_dir, format='png', dpi=300):
         output_dir (str): Directory to save the images
         format (str): Image format (default: png)
         dpi (int): Image resolution (default: 300)
+        slide_filter (set): Set of slide numbers to extract (1-based), or None for all slides
         
     Returns:
         list: List of paths to the generated images
@@ -186,13 +187,30 @@ def convert_pdf_to_images(pdf_path, output_dir, format='png', dpi=300):
             # Import here to avoid slowing down the script if not needed
             from pdf2image import convert_from_path
             
-            # Convert PDF to images
-            images = convert_from_path(
-                pdf_path, 
-                dpi=dpi,
-                # Use a thread-safe callback to report progress during conversion
-                thread_count=1  # Use single thread to avoid potential issues
-            )
+            # Convert PDF to images, with optional page filtering
+            if slide_filter:
+                # Convert only specific pages (1-based indexing)
+                images = convert_from_path(
+                    pdf_path, 
+                    dpi=dpi,
+                    first_page=min(slide_filter),
+                    last_page=max(slide_filter),
+                    thread_count=1
+                )
+                # Filter to only requested slides
+                filtered_images = []
+                for i, image in enumerate(images):
+                    page_num = min(slide_filter) + i
+                    if page_num in slide_filter:
+                        filtered_images.append(image)
+                images = filtered_images
+            else:
+                # Convert all pages
+                images = convert_from_path(
+                    pdf_path, 
+                    dpi=dpi,
+                    thread_count=1
+                )
             
             # Stop progress reporting
             stop_progress_thread.set()
@@ -208,7 +226,14 @@ def convert_pdf_to_images(pdf_path, output_dir, format='png', dpi=300):
                 if i % 5 == 0 or i == len(images) - 1:
                     logger.info(f"Saving image {i+1}/{len(images)}")
                 
-                image_path = os.path.join(output_dir, f"slide_{i+1}.{format}")
+                # Calculate actual slide number based on filter
+                if slide_filter:
+                    slide_numbers = sorted(slide_filter)
+                    slide_num = slide_numbers[i]
+                else:
+                    slide_num = i + 1
+                
+                image_path = os.path.join(output_dir, f"slide_{slide_num}.{format}")
                 image.save(image_path, format.upper())
                 image_paths.append(image_path)
                 
@@ -234,7 +259,7 @@ def convert_pdf_to_images(pdf_path, output_dir, format='png', dpi=300):
         logger.error(f"Error converting PDF to images: {e}")
         return []
 
-def extract_slides(pptx_path, output_dir, format='png', dpi=300):
+def extract_slides(pptx_path, output_dir, format='png', dpi=300, slide_filter=None):
     """Extract slides from a PowerPoint file as images.
     
     Args:
@@ -242,6 +267,7 @@ def extract_slides(pptx_path, output_dir, format='png', dpi=300):
         output_dir (str): Directory to save the images
         format (str): Image format (default: png)
         dpi (int): Image resolution (default: 300)
+        slide_filter (set): Set of slide numbers to extract (1-based), or None for all slides
         
     Returns:
         list: List of paths to the generated images
@@ -264,7 +290,7 @@ def extract_slides(pptx_path, output_dir, format='png', dpi=300):
         return []
     
     # Convert PDF to images
-    temp_images = convert_pdf_to_images(pdf_path, output_dir, format, dpi)
+    temp_images = convert_pdf_to_images(pdf_path, output_dir, format, dpi, slide_filter)
     if not temp_images:
         logger.error("Failed to convert PDF to images. Aborting slide extraction.")
         return []
@@ -285,6 +311,14 @@ def extract_slides(pptx_path, output_dir, format='png', dpi=300):
                 renamed_images.append(image_path)
         else:
             renamed_images.append(image_path)
+    
+    # Clean up the temporary PDF file
+    try:
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+            logger.info(f"Cleaned up temporary PDF file: {pdf_path}")
+    except Exception as e:
+        logger.warning(f"Could not remove temporary PDF file {pdf_path}: {e}")
     
     logger.info(f"Extracted {len(renamed_images)} slides to {output_dir}")
     return renamed_images
