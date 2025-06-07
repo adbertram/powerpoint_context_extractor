@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 import logging
 from pptx import Presentation
 
-from ..utils.common import NAMESPACES, register_namespaces
+from ..utils.common import NAMESPACES, register_namespaces, get_slide_text_as_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -173,12 +173,16 @@ def extract_slide_notes(pptx_path, slide_filter=None):
         # Use the best available notes (prefer XML parsing if it found notes)
         notes_text = xml_note if xml_note else pptx_notes
         
+        # Extract slide text content as Markdown
+        slide_text = get_slide_text_as_markdown(slide)
+        
         logger.info(f"Processing slide {i}: {title[:50]}{'...' if len(title) > 50 else ''} - Notes: {'Yes' if notes_text else 'No'}")
         
         # Add slide information to the dictionary
         notes_data[f"slide_{i}"] = {
             'slide_number': i,
             'title': title,
+            'text': slide_text,
             'notes': notes_text
         }
     

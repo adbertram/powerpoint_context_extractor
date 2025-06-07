@@ -79,3 +79,42 @@ def get_slide_title(slide):
                 title = shape.text.strip().replace('\n', ' ')
                 break
     return title
+
+def get_slide_text_as_markdown(slide):
+    """Extract all text content from a slide and format as Markdown.
+    
+    Args:
+        slide: Slide object from python-pptx
+        
+    Returns:
+        str: All text content from the slide formatted as Markdown
+    """
+    text_content = []
+    title_found = False
+    
+    for shape in slide.shapes:
+        if hasattr(shape, "text") and shape.has_text_frame:
+            shape_text = shape.text.strip()
+            if shape_text:
+                # Check if this might be a title (first non-empty text shape)
+                if not title_found and len(shape_text.split('\n')) == 1:
+                    text_content.append(f"# {shape_text}")
+                    title_found = True
+                else:
+                    # Handle multi-line text content
+                    lines = shape_text.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if line:
+                            # Check if line might be a bullet point
+                            if line.startswith('•') or line.startswith('-') or line.startswith('*'):
+                                text_content.append(f"- {line[1:].strip()}")
+                            else:
+                                text_content.append(line)
+    
+    # If no content was found, return empty string
+    if not text_content:
+        return ""
+    
+    # Join all content with appropriate spacing
+    return '\n\n'.join(text_content)

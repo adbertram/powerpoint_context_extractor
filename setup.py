@@ -31,7 +31,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "pptx-extract=pptx_extractor.cli:main",
+            "pptx-extract=pptx_extract:main",
         ],
     },
 )

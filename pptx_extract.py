@@ -37,7 +37,7 @@ load_dotenv()
 from pptx_extractor.utils.common import setup_logging, ensure_directory
 from pptx_extractor.notes.extractor import extract_slide_notes
 from pptx_extractor.animations.extractor import extract_slide_animations
-from pptx_extractor.slides.extractor import extract_slides
+from pptx_extractor.slides.extractor import extract_slides, extract_slide_text_data
 from pptx_extractor.recommendations import generate_all_recommendations
 from pptx_extractor.config import get_config
 
@@ -125,6 +125,7 @@ def parse_arguments():
                         help=f"LLM provider to use for recommendations (default: {cli_defaults.get('llm_provider', 'anthropic')})")
     parser.add_argument("--slide-nums", help="Specific slide numbers to process (e.g., '1', '1,3,5', '1-5', '1-3,7,9-11')")
     parser.add_argument("--config", help="Path to configuration file (overrides default config)")
+    parser.add_argument("--output-filename", default="presentation_content.json", help="Name of the output JSON file (default: presentation_content.json)")
     
     return parser.parse_args()
 
@@ -196,12 +197,17 @@ def extract_pptx_content(args):
     notes_data = None
     animation_data = None
     slide_paths = None
+    slide_text_data = None
     
     # Determine what to extract
     extract_all = "all" in args.extract
     extract_notes = "notes" in args.extract or extract_all
     extract_animations = "animations" in args.extract or extract_all
     extract_images = "images" in args.extract or extract_all
+    
+    # Extract slide text content (always extract for unified JSON)
+    logger.info("Extracting slide text content...")
+    slide_text_data = extract_slide_text_data(pptx_path, slide_filter)
     
     # Extract notes if requested
     if extract_notes:
@@ -223,13 +229,6 @@ def extract_pptx_content(args):
         slide_paths = extract_slides(pptx_path, slides_dir, args.format, args.dpi, slide_filter)
         if slide_paths:
             logger.info(f"Successfully extracted {len(slide_paths)} slides to {slides_dir}")
-            
-        # Also extract slide titles when extracting images for better metadata
-        if not notes_data:
-            logger.info("Extracting slide titles for better metadata...")
-            basic_notes_data = extract_slide_notes(pptx_path, slide_filter)
-            if basic_notes_data:
-                notes_data = basic_notes_data
     
     # Create a unified JSON in the requested format
     logger.info("Creating unified slide content file...")
@@ -237,6 +236,8 @@ def extract_pptx_content(args):
     
     # Determine the maximum number of slides from available data
     max_slides = 0
+    if slide_text_data:
+        max_slides = max(max_slides, max([int(key.split('_')[1]) for key in slide_text_data.keys()]))
     if notes_data:
         max_slides = max(max_slides, max([int(key.split('_')[1]) for key in notes_data.keys()]))
     if animation_data:
@@ -254,25 +255,29 @@ def extract_pptx_content(args):
         slide_info = {
             "number": slide_num,
             "title": "",
-            "has_animations": False,
+            "text": "",
             "notes": "",
-            "description": ""
+            "animation_sequence": [],
+            "image_path": ""
         }
+        
+        # Add slide text data (title and text content)
+        if slide_text_data and slide_key in slide_text_data:
+            slide_info["title"] = slide_text_data[slide_key].get("title", "")
+            slide_info["text"] = slide_text_data[slide_key].get("text", "")
         
         # Add notes data if available
         if notes_data and slide_key in notes_data:
-            slide_info["title"] = notes_data[slide_key].get("title", "")
+            # Override title if notes has it (notes extraction includes text content)
+            if notes_data[slide_key].get("title"):
+                slide_info["title"] = notes_data[slide_key]["title"]
+            if notes_data[slide_key].get("text"):
+                slide_info["text"] = notes_data[slide_key]["text"]
             slide_info["notes"] = notes_data[slide_key].get("notes", "")
         
         # Add animation data if available
         if animation_data and slide_key in animation_data:
-            slide_info["has_animations"] = animation_data[slide_key].get("has_animations", False)
-            # Add animation summary
-            if animation_data[slide_key].get("animation_summary"):
-                slide_info["animation_summary"] = animation_data[slide_key]["animation_summary"]
-            # Add detailed animation information if present
-            if animation_data[slide_key].get("animation_details"):
-                slide_info["animation_details"] = animation_data[slide_key]["animation_details"]
+            slide_info["animation_sequence"] = animation_data[slide_key].get("animations", [])
         
         # Add image path if slide images were extracted
         if slide_paths:
@@ -296,7 +301,7 @@ def extract_pptx_content(args):
         slides_data = generate_all_recommendations(slides_data, args.api_key, args.llm_provider, args.recommendation_method)
     
     # Save the unified JSON file
-    unified_file = save_json_data(slides_data, output_path, "presentation_content.json")
+    unified_file = save_json_data(slides_data, output_path, args.output_filename)
     if unified_file:
         logger.info(f"Successfully saved unified presentation content to {unified_file}")
     
@@ -344,7 +349,7 @@ def main():
     if slide_paths:
         print(f"- {len(slide_paths)} slides extracted as images")
     print(f"\nOutput directory: {os.path.abspath(args.output)}")
-    print(f"\nUnified presentation content saved to: {os.path.abspath(args.output)}/presentation_content.json")
+    print(f"\nUnified presentation content saved to: {os.path.abspath(args.output)}/{args.output_filename}")
 
 if __name__ == "__main__":
     main()

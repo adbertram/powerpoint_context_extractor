@@ -99,10 +99,10 @@ You can also use the console script (after `pip install -e .`):
 pptx-extract path/to/presentation.pptx [options]
 ```
 
-Or the basic CLI interface:
+Or directly using the main script:
 
 ```bash
-python -m pptx_extractor.cli path/to/presentation.pptx
+python pptx_extract.py path/to/presentation.pptx --extract all
 ```
 
 ### Examples
@@ -221,7 +221,6 @@ powerpoint_context_extractor/
 ├── pptx_extract.py             # Main entry point script
 ├── pptx_extractor/             # Package directory
 │   ├── __init__.py             # Package initialization
-│   ├── cli.py                  # Alternative CLI interface
 │   ├── animations/             # Animations extraction module
 │   │   ├── __init__.py
 │   │   └── extractor.py        # Animations extraction functionality

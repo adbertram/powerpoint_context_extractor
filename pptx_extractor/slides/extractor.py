@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from pptx import Presentation
 
-from ..utils.common import ensure_directory, sanitize_filename, get_slide_title
+from ..utils.common import ensure_directory, sanitize_filename, get_slide_title, get_slide_text_as_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +128,39 @@ def extract_slide_titles(pptx_path):
     except Exception as e:
         logger.error(f"Error extracting slide titles: {e}")
         return []
+
+def extract_slide_text_data(pptx_path, slide_filter=None):
+    """Extract text content from all slides in a PowerPoint file.
+    
+    Args:
+        pptx_path (str): Path to the PowerPoint file
+        slide_filter (set): Set of slide numbers to extract (1-based), or None for all slides
+        
+    Returns:
+        dict: Dictionary containing slide text data
+    """
+    slide_data = {}
+    try:
+        prs = Presentation(pptx_path)
+        for i, slide in enumerate(prs.slides, 1):
+            # Skip if slide filtering is enabled and this slide is not in the filter
+            if slide_filter and i not in slide_filter:
+                continue
+                
+            title = get_slide_title(slide)
+            text = get_slide_text_as_markdown(slide)
+            
+            slide_data[f"slide_{i}"] = {
+                'slide_number': i,
+                'title': title,
+                'text': text
+            }
+        
+        logger.info(f"Extracted text data from {len(slide_data)} slides")
+        return slide_data
+    except Exception as e:
+        logger.error(f"Error extracting slide text data: {e}")
+        return {}
 
 def convert_pdf_to_images(pdf_path, output_dir, format='png', dpi=300, slide_filter=None):
     """Convert PDF file to images using pdf2image.
