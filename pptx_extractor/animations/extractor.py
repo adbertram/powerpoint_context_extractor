@@ -232,98 +232,201 @@ def extract_animation_info(slide):
 
 def create_animation_description(animation, shape_info):
     """
-    Create a human-readable description of an animation.
+    Create a comprehensive, human-readable description of an animation for LLM understanding.
     
     Args:
         animation: Animation dictionary
         shape_info: Dictionary of shape information
         
     Returns:
-        str: Human-readable animation description
+        str: Detailed human-readable animation description
     """
-    # Get shape description
-    shape_desc = "Unknown shape"
-    if animation['shape_id'] in shape_info:
-        shape = shape_info[animation['shape_id']]
-        if shape['text']:
-            shape_desc = f"{shape['type']} with text '{shape['text']}'"
-        else:
-            shape_desc = f"{shape['type']}"
+    # Get detailed shape information
+    shape_id = animation['shape_id']
+    shape_details = shape_info.get(shape_id, {})
+    shape_type = shape_details.get('type', 'element').replace('_', ' ').lower()
+    shape_text = shape_details.get('text', '')
     
-    # Describe the effect
-    effect_desc = ""
-    if animation['effect_type'] == 'in':
-        effect_desc = "enters"
-    elif animation['effect_type'] == 'out':
-        effect_desc = "exits"
-    elif animation['effect_type'] == 'emphasis':
-        effect_desc = "is emphasized"
-    elif animation['effect_type'] == 'motion':
-        effect_desc = "moves"
+    # Create element description
+    element_desc = ""
+    if shape_text:
+        # Truncate very long text but keep it meaningful
+        display_text = shape_text[:100].strip()
+        if len(shape_text) > 100:
+            display_text += "..."
+        
+        if shape_type in ['text box', 'text placeholder', 'title']:
+            element_desc = f'The {shape_type} containing "{display_text}"'
+        elif shape_type == 'picture':
+            element_desc = f'An image/picture element'
+        else:
+            element_desc = f'A {shape_type} element with content "{display_text}"'
     else:
-        effect_desc = "animates"
-    
-    # Add effect details
-    if animation['effect_subtype']:
-        if animation['effect_subtype'] == 'fade':
-            effect_desc += " with fade"
-        elif animation['effect_subtype'] == 'fly':
-            effect_desc += " by flying"
-        elif animation['effect_subtype'] == 'wipe':
-            effect_desc += " with wipe"
-        elif animation['effect_subtype'] == 'grow/shrink':
-            effect_desc += " by scaling"
-        elif animation['effect_subtype'] == 'color':
-            effect_desc += " with color change"
+        if shape_type == 'picture':
+            element_desc = 'An image/picture element'
+        elif shape_type in ['auto shape', 'freeform']:
+            element_desc = 'A shape element'
         else:
-            effect_desc += f" with {animation['effect_subtype']}"
+            element_desc = f'A {shape_type} element'
     
-    # Add direction if applicable
-    if animation['effect_direction']:
-        if 'from' in animation['effect_direction']:
-            effect_desc += f" {animation['effect_direction'].replace('from', 'from ')}"
-        elif animation['effect_direction'].startswith('to_color_'):
-            color = animation['effect_direction'].replace('to_color_', '#')
-            effect_desc += f" to color {color}"
+    # Describe the animation effect in natural language
+    effect_descriptions = {
+        'in': {
+            'fade': 'fades into view',
+            'fly': 'flies in',
+            'wipe': 'wipes in',
+            'zoom': 'zooms in',
+            'swivel': 'swivels in',
+            'bounce': 'bounces in',
+            'float': 'floats in',
+            'split': 'splits and enters',
+            'appear': 'appears instantly'
+        },
+        'out': {
+            'fade': 'fades out of view',
+            'fly': 'flies out',
+            'wipe': 'wipes out',
+            'zoom': 'zooms out',
+            'swivel': 'swivels out',
+            'bounce': 'bounces out',
+            'float': 'floats out',
+            'split': 'splits and exits',
+            'disappear': 'disappears instantly'
+        },
+        'emphasis': {
+            'color': 'changes color',
+            'grow/shrink': 'grows and shrinks',
+            'spin': 'spins',
+            'pulse': 'pulses',
+            'teeter': 'teeters',
+            'flash': 'flashes',
+            'shimmer': 'shimmers'
+        },
+        'motion': {
+            'path': 'follows a motion path',
+            'turn': 'turns',
+            'grow': 'grows in size',
+            'shrink': 'shrinks in size'
+        }
+    }
+    
+    # Get the effect description
+    effect_type = animation.get('effect_type', 'appear')
+    effect_subtype = animation.get('effect_subtype', '')
+    
+    if effect_type in effect_descriptions and effect_subtype in effect_descriptions[effect_type]:
+        action = effect_descriptions[effect_type][effect_subtype]
+    elif effect_type == 'in':
+        action = 'enters the slide'
+    elif effect_type == 'out':
+        action = 'exits the slide'
+    elif effect_type == 'emphasis':
+        action = 'is emphasized'
+    elif effect_type == 'motion':
+        action = 'moves'
+    else:
+        action = 'animates'
+    
+    # Add direction details
+    direction = animation.get('effect_direction', '')
+    if direction:
+        direction_map = {
+            'fromBottom': 'from the bottom',
+            'fromTop': 'from the top',
+            'fromLeft': 'from the left',
+            'fromRight': 'from the right',
+            'fromBottomLeft': 'from the bottom-left corner',
+            'fromBottomRight': 'from the bottom-right corner',
+            'fromTopLeft': 'from the top-left corner',
+            'fromTopRight': 'from the top-right corner',
+            'horizontal': 'horizontally',
+            'vertical': 'vertically',
+            'in': 'inward',
+            'out': 'outward'
+        }
+        
+        if direction in direction_map:
+            action += f" {direction_map[direction]}"
+        elif direction.startswith('to_color_'):
+            color = direction.replace('to_color_', '#')
+            action += f" to the color {color}"
+        elif 'scale' in direction:
+            # Parse scale values
+            import re
+            scale_match = re.search(r'scale_x(\d+)_y(\d+)', direction)
+            if scale_match:
+                x_scale = int(scale_match.group(1)) / 100000
+                y_scale = int(scale_match.group(2)) / 100000
+                action += f" by {x_scale:.1f}x horizontally and {y_scale:.1f}x vertically"
+    
+    # Build timing description
+    timing_desc = []
+    
+    # Start condition
+    start = animation.get('start_condition', 'on_click')
+    if start == 'on_click':
+        timing_desc.append("This animation starts when the presenter clicks")
+    elif start == 'with_previous':
+        timing_desc.append("This animation plays simultaneously with the previous animation")
+    elif start == 'after_previous':
+        timing_desc.append("This animation starts automatically after the previous animation completes")
+    
+    # Delay
+    delay = animation.get('delay_ms', 0)
+    if delay and delay > 0:
+        delay_sec = delay / 1000
+        if delay_sec >= 1:
+            timing_desc.append(f"with a {delay_sec:.1f} second delay")
         else:
-            effect_desc += f" ({animation['effect_direction']})"
+            timing_desc.append(f"with a {int(delay)} millisecond delay")
     
-    # Build the full description
-    desc = f"{shape_desc} {effect_desc}"
-    
-    # Add timing information
-    timing_parts = []
-    
-    if animation['start_condition'] == 'on_click':
-        timing_parts.append("on click")
-    elif animation['start_condition'] == 'with_previous':
-        timing_parts.append("with previous")
-    elif animation['start_condition'] == 'after_previous':
-        timing_parts.append("after previous")
-    
-    if animation['delay_ms'] and animation['delay_ms'] > 0:
-        timing_parts.append(f"after {animation['delay_ms']/1000:.1f}s delay")
-    
-    if animation['duration_ms'] != 'unknown':
-        timing_parts.append(f"over {animation['duration_ms']/1000:.1f}s")
-    
-    if animation['repeat_count'] != '1':
-        if animation['repeat_count'] == 'indefinite':
-            timing_parts.append("repeating indefinitely")
+    # Duration
+    duration = animation.get('duration_ms', 'unknown')
+    if duration != 'unknown' and duration != "unknown":
+        dur_sec = duration / 1000
+        if dur_sec >= 1:
+            timing_desc.append(f"taking {dur_sec:.1f} seconds to complete")
         else:
-            timing_parts.append(f"repeating {animation['repeat_count']} times")
+            timing_desc.append(f"taking {int(duration)} milliseconds to complete")
     
-    if animation['auto_reverse']:
-        timing_parts.append("with auto-reverse")
+    # Repetition
+    repeat = animation.get('repeat_count', '1')
+    if repeat != '1':
+        if repeat == 'indefinite':
+            timing_desc.append("repeating continuously")
+        else:
+            timing_desc.append(f"repeating {repeat} times")
     
-    if timing_parts:
-        desc += " (" + ", ".join(timing_parts) + ")"
+    # Auto-reverse
+    if animation.get('auto_reverse', False):
+        timing_desc.append("then reversing back to its original state")
     
-    # Add build level for text animations
-    if animation['build_level']:
-        desc += f" [{animation['build_level']}]"
+    # Build level (for text animations)
+    build_level = animation.get('build_level', '')
+    if build_level:
+        # Parse paragraph range
+        para_match = re.search(r'paragraph_(\d+)-(\d+)', build_level)
+        if para_match:
+            start_para = int(para_match.group(1))
+            end_para = int(para_match.group(2))
+            if start_para == end_para:
+                timing_desc.append(f"animating paragraph {start_para + 1}")
+            else:
+                timing_desc.append(f"animating paragraphs {start_para + 1} through {end_para + 1}")
     
-    return desc
+    # Combine all parts into a natural description
+    full_description = f"{element_desc} {action}."
+    
+    if timing_desc:
+        full_description += " " + ". ".join(timing_desc) + "."
+    
+    # Add sequence information
+    seq_id = animation.get('sequence_id', '')
+    effect_id = animation.get('effect_id', '')
+    if seq_id and effect_id:
+        full_description += f" (Animation sequence {seq_id}, effect {effect_id})"
+    
+    return full_description
 
 def check_slide_master_animations(pptx_path):
     """
@@ -538,15 +641,48 @@ def extract_slide_animations(pptx_path):
             except Exception as e:
                 logger.debug(f"Could not extract animations from layout {layout_idx}: {e}")
         
+        # Create animation summary
+        animation_summary = ""
+        if animation_details:
+            # Group animations by sequence
+            sequences = {}
+            for anim in animation_details:
+                seq_id = anim.get('sequence_id', 'unknown')
+                if seq_id not in sequences:
+                    sequences[seq_id] = []
+                sequences[seq_id].append(anim)
+            
+            # Create narrative summary
+            summary_parts = []
+            summary_parts.append(f"This slide has {len(animation_details)} animation effects.")
+            
+            if layout_has_animations and not has_slide_animations:
+                summary_parts.append(f"All animations are inherited from the slide layout.")
+            elif has_slide_animations and layout_has_animations:
+                direct_count = len([a for a in animation_details if 'inherited_from' not in a])
+                inherited_count = len([a for a in animation_details if 'inherited_from' in a])
+                summary_parts.append(f"{direct_count} animations are directly applied and {inherited_count} are inherited from the layout.")
+            
+            # Describe the animation flow
+            if len(sequences) == 1:
+                summary_parts.append("The animations play in a single sequence.")
+            else:
+                summary_parts.append(f"The animations are organized in {len(sequences)} sequences.")
+            
+            animation_summary = " ".join(summary_parts)
+        else:
+            animation_summary = "This slide has no animations."
+        
         # Add slide information to the dictionary
         animation_data[f"slide_{i}"] = {
             'slide_number': i,
             'title': title,
             'animations': animations,
             'animation_details': animation_details,
+            'animation_summary': animation_summary,
             'shapes': shape_info,
             'transition': transition,
-            'animation_count': len(animations),
+            'animation_count': len(animation_details),
             'has_animations': has_slide_animations or layout_has_animations,
             'layout_animations': layout_has_animations,
             'direct_animations': has_slide_animations
