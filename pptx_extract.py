@@ -277,7 +277,7 @@ def extract_pptx_content(args):
         
         # Add animation data if available
         if animation_data and slide_key in animation_data:
-            slide_info["animation_sequence"] = animation_data[slide_key].get("animations", [])
+            slide_info["animation_sequence"] = animation_data[slide_key].get("animation_details", [])
         
         # Add image path if slide images were extracted
         if slide_paths:
